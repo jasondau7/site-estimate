@@ -10,7 +10,7 @@ export const AuthProvider = ({ children }) => {
   const [isLoading, setIsLoading] = useState(true);
 
   // CHANGE THIS TO YOUR RENDER URL ONCE DEPLOYED
-  const API_URL = 'http://10.0.2.2:8000'; 
+  const API_URL = 'https://site-estimate-api.onrender.com'; 
 
   const login = async (email, password) => {
     try {
