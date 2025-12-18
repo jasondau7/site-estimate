@@ -1,0 +1,38 @@
+{
+  "materials": [
+    {
+      "id": "mat-001",
+      "name": "Interior Latex Paint",
+      "unit": "1 Gallon",
+      "coverage": "Approx. 325 sq. ft.",
+      "image": "paint_can.png"
+    },
+    {
+      "id": "mat-002",
+      "name": "Drywall Sheet",
+      "unit": "4' x 8' Sheet",
+      "coverage": "32 sq. ft.",
+      "image": "drywall_sheet.png"
+    },
+    {
+      "id": "mat-003",
+      "name": "Vinyl Plank Flooring",
+      "unit": "1 Box",
+      "coverage": "20.1 sq. ft.",
+      "image": "flooring_tile.png"
+    },
+    {
+      "id": "mat-004",
+      "name": "All-Purpose Primer",
+      "unit": "1 Gallon",
+      "coverage": "Approx. 215 sq. ft.",
+      "image": "paint_can.png"
+    },
+    {
+      "id": "mat-005",
+      "name": "More Coming Soon...",
+      "unit": "...",
+      "coverage": "..."
+    }
+  ]
+}
