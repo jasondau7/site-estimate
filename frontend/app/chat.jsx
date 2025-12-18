@@ -1,5 +1,15 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
-import { View, Text, TextInput, FlatList, StyleSheet, KeyboardAvoidingView, Platform, TouchableOpacity } from 'react-native';
+import { 
+  View, 
+  Text, 
+  TextInput, 
+  FlatList, 
+  StyleSheet, 
+  KeyboardAvoidingView, 
+  Platform, 
+  TouchableOpacity, 
+  Keyboard 
+} from 'react-native';
 import { AuthContext } from '../context/AuthContext';
 import { colors } from '../components/styles';
 import { Ionicons } from '@expo/vector-icons';
@@ -9,24 +19,32 @@ export default function ChatScreen() {
   const [text, setText] = useState('');
   const { userInfo, API_URL } = useContext(AuthContext);
   const ws = useRef(null);
+  const flatListRef = useRef(null);
 
   useEffect(() => {
-    // Convert HTTP URL to WS URL (e.g., http://192.168.1.5 -> ws://192.168.1.5)
-    const wsUrl = API_URL.replace('http', 'ws') + `/ws/${userInfo?.username || 'Guest'}`;
+    // Convert HTTP to WS (e.g. https://... -> wss://...)
+    const wsUrl = API_URL.replace('http', 'ws').replace('https', 'wss') + `/ws/${userInfo?.username || 'Guest'}`;
     
     ws.current = new WebSocket(wsUrl);
 
     ws.current.onopen = () => {
-        setMessages(prev => [...prev, { id: Date.now(), text: "🔵 Connected to Chat!", system: true }]);
+        setMessages(prev => [...prev, { id: Date.now(), text: "🔵 Connected to Chat", system: true }]);
     };
 
     ws.current.onmessage = (e) => {
-        setMessages(prev => [...prev, { id: Date.now(), text: e.data, system: false }]);
+        // Simple check to see if it's a user message "User: Message"
+        const parts = e.data.split(': ');
+        if(parts.length >= 2) {
+            const sender = parts[0];
+            const msgText = parts.slice(1).join(': ');
+            const isMe = sender === userInfo?.username;
+            setMessages(prev => [...prev, { id: Date.now(), text: msgText, sender, isMe }]);
+        } else {
+            setMessages(prev => [...prev, { id: Date.now(), text: e.data, system: true }]);
+        }
     };
 
-    ws.current.onclose = () => {
-        setMessages(prev => [...prev, { id: Date.now(), text: "🔴 Disconnected", system: true }]);
-    };
+    ws.current.onerror = (e) => console.log("WS Error");
 
     return () => {
         if (ws.current) ws.current.close();
@@ -41,21 +59,34 @@ export default function ChatScreen() {
   };
 
   const renderItem = ({ item }) => {
-      const isSystem = item.system;
+      if (item.system) {
+          return (
+            <View style={styles.systemBubble}>
+                <Text style={styles.systemText}>{item.text}</Text>
+            </View>
+          );
+      }
       return (
-        <View style={[styles.msgBubble, isSystem ? styles.systemBubble : styles.userBubble]}>
-            <Text style={isSystem ? styles.systemText : styles.userText}>{item.text}</Text>
+        <View style={[styles.msgBubble, item.isMe ? styles.myBubble : styles.theirBubble]}>
+            {!item.isMe && <Text style={styles.senderName}>{item.sender}</Text>}
+            <Text style={item.isMe ? styles.myText : styles.theirText}>{item.text}</Text>
         </View>
       );
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.container}>
+    <KeyboardAvoidingView 
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+        style={styles.container}
+    >
       <FlatList
+        ref={flatListRef}
         data={messages}
-        keyExtractor={item => item.id.toString()}
+        keyExtractor={(item, index) => index.toString()}
         renderItem={renderItem}
-        contentContainerStyle={{ padding: 10 }}
+        contentContainerStyle={{ padding: 15 }}
+        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
       />
       
       <View style={styles.inputContainer}>
@@ -63,11 +94,11 @@ export default function ChatScreen() {
             style={styles.input} 
             value={text} 
             onChangeText={setText} 
-            placeholder="Type a message..." 
-            placeholderTextColor="#888"
+            placeholder="Type a message..."
+            placeholderTextColor="#888" 
         />
         <TouchableOpacity onPress={sendMessage} style={styles.sendBtn}>
-            <Ionicons name="send" size={20} color="white" />
+            <Ionicons name="arrow-up" size={24} color="white" />
         </TouchableOpacity>
       </View>
     </KeyboardAvoidingView>
@@ -75,13 +106,66 @@ export default function ChatScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#f0f0f0' },
-    msgBubble: { padding: 10, borderRadius: 8, marginBottom: 8, maxWidth: '80%' },
-    userBubble: { backgroundColor: 'white', alignSelf: 'flex-start' },
-    systemBubble: { backgroundColor: '#e0e0e0', alignSelf: 'center' },
-    userText: { color: '#333' },
-    systemText: { color: '#666', fontStyle: 'italic', fontSize: 12 },
-    inputContainer: { flexDirection: 'row', padding: 10, backgroundColor: 'white', alignItems: 'center' },
-    input: { flex: 1, backgroundColor: '#f9f9f9', borderRadius: 20, paddingHorizontal: 15, height: 40, borderWidth: 1, borderColor: '#ddd', marginRight: 10 },
-    sendBtn: { backgroundColor: colors.primary, width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center' }
+    container: { flex: 1, backgroundColor: '#f2f2f7' },
+    
+    // Chat Bubbles
+    msgBubble: { 
+        padding: 12, 
+        borderRadius: 18, 
+        marginBottom: 8, 
+        maxWidth: '80%' 
+    },
+    myBubble: { 
+        backgroundColor: colors.primary, 
+        alignSelf: 'flex-end',
+        borderBottomRightRadius: 2
+    },
+    theirBubble: { 
+        backgroundColor: 'white', 
+        alignSelf: 'flex-start',
+        borderBottomLeftRadius: 2,
+        borderWidth: 1,
+        borderColor: '#e5e5ea'
+    },
+    systemBubble: { 
+        alignSelf: 'center', 
+        marginBottom: 10, 
+        backgroundColor: '#e5e5ea', 
+        paddingVertical: 4, 
+        paddingHorizontal: 12, 
+        borderRadius: 12 
+    },
+
+    // Text Styles
+    myText: { color: 'white', fontSize: 16 },
+    theirText: { color: 'black', fontSize: 16 },
+    senderName: { fontSize: 12, color: '#888', marginBottom: 4 },
+    systemText: { color: '#666', fontSize: 12 },
+
+    // Input Area
+    inputContainer: { 
+        flexDirection: 'row', 
+        padding: 10, 
+        backgroundColor: 'white', 
+        alignItems: 'center',
+        borderTopWidth: 1,
+        borderTopColor: '#ddd'
+    },
+    input: { 
+        flex: 1, 
+        backgroundColor: '#f2f2f7', 
+        borderRadius: 20, 
+        paddingHorizontal: 15, 
+        height: 40, 
+        marginRight: 10,
+        fontSize: 16
+    },
+    sendBtn: { 
+        backgroundColor: colors.primary, 
+        width: 40, 
+        height: 40, 
+        borderRadius: 20, 
+        justifyContent: 'center', 
+        alignItems: 'center' 
+    }
 });
